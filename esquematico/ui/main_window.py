@@ -6,7 +6,7 @@ import os
 from typing import Dict, Optional
 
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter
+from PySide6.QtGui import QAction, QActionGroup, QColor, QKeySequence, QPainter
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -231,20 +231,32 @@ class MainWindow(QMainWindow):
         tb.setIconSize(QSize(20, 20))
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
 
-        tb.addAction(self._action("Seleccionar", lambda: self.set_tool("select"),
-                                  "V"))
-        tb.addAction(self._action("Símbolo", lambda: self.prompt_symbol(),
-                                  "S"))
+        # Grupo exclusivo de herramientas: al pulsar una se resalta
+        self._tool_actions: Dict[str, QAction] = {}
+        self.tool_group = QActionGroup(self)
+        self.tool_group.setExclusive(True)
+
+        def _tool_action(text, tool, shortcut=None):
+            act = self._action(text, lambda: self.set_tool(tool), shortcut,
+                               checkable=True)
+            self.tool_group.addAction(act)
+            self.tool_group.setExclusive(True)
+            self._tool_actions[tool] = act
+            tb.addAction(act)
+            return act
+
+        _tool_action("Seleccionar", "select", "V")
+        _tool_action("Símbolo", "symbol_prompt", "S")
         tb.addSeparator()
-        tb.addAction(self._action("Cable", lambda: self.set_tool("wire"),
-                                  "C"))
+        _tool_action("Cable", "wire", "C")
         tb.addSeparator()
-        tb.addAction(self._action("Mano", lambda: self.set_tool("pan"), "H"))
+        _tool_action("Mano", "pan", "H")
         tb.addSeparator()
         tb.addAction(self._action("- zoom", lambda: self.zoom_view(1 / 1.2)))
         tb.addAction(self._action("+ zoom", lambda: self.zoom_view(1.2)))
 
-        self._tool_actions = tb.actions()
+        # Herramienta por defecto
+        self._tool_actions["select"].setChecked(True)
 
     def _build_central(self) -> None:
         self.view = DiagramView(self.diagram, self.library)
@@ -285,21 +297,31 @@ class MainWindow(QMainWindow):
     # Herramientas
     # ------------------------------------------------------------------
     def set_tool(self, tool: str) -> None:
+        # Resalta el botón de la herramienta activa
+        if tool in self._tool_actions:
+            self._tool_actions[tool].setChecked(True)
+        if tool == "symbol_prompt":
+            self.view.set_tool("symbol")
+            self.statusBar().showMessage(
+                "Elija un símbolo en la biblioteca (izquierda) y haga clic "
+                "en el lienzo para colocarlo")
+            return
         self.view.set_tool(tool)
         self.statusBar().showMessage(
-            {"select": "Herramienta: seleccionar",
-             "wire": "Herramienta: cable (clic inicio, clic fin)",
+            {"select": "Herramienta: seleccionar (clic para elegir, "
+                       "arrastrar para mover)",
+             "wire": "Herramienta: cable (1er clic: inicio, 2º clic: fin)",
              "pan": "Herramienta: mano (arrastrar para desplazar)",
              "symbol": "Haga clic en el lienzo para colocar el símbolo"
              }.get(tool, ""))
 
     def prompt_symbol(self) -> None:
-        self.view.set_tool("symbol")
-        self.statusBar().showMessage(
-            "Elija un símbolo en la biblioteca para colocarlo")
+        self.set_tool("symbol_prompt")
 
     def _palette_symbol_selected(self, symbol: Symbol) -> None:
         """Arma el símbolo elegido en la biblioteca para colocarlo en el lienzo."""
+        if "symbol_prompt" in self._tool_actions:
+            self._tool_actions["symbol_prompt"].setChecked(True)
         self.view.set_symbol(symbol)
         self.statusBar().showMessage(
             f"Coloque el símbolo «{symbol.name}» haciendo clic en el lienzo "

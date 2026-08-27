@@ -122,4 +122,6 @@ esquematico/
 
 ## Licencia
 
-[MIT](LICENSE)
+[GNU General Public License v3.0 (GPL-3.0)](LICENSE)
+
+Copyright (C) 2026 Jose Manuel Bernabeu Mejias

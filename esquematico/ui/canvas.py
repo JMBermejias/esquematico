@@ -76,6 +76,7 @@ class DiagramView(QGraphicsView):
         self.tool = "select"          # select | symbol | wire | pan
         self.pending_symbol: Optional[SymbolInstance] = None
         self.wire_start: Optional[QPointF] = None
+        self.wire_start_pos: Optional[QPointF] = None
         self.wire_preview_start: Optional[QPointF] = None
         self._snapping = True
         self._zoom = 1.0
@@ -87,6 +88,8 @@ class DiagramView(QGraphicsView):
         self._symbol_items: Dict[int, QGraphicsItem] = {}
         self._pending_preview_item = None
         self._wire_preview_line: Optional[QGraphicsLineItem] = None
+        self._wire_start_marker: Optional[QGraphicsEllipseItem] = None
+        self._wire_dragging = False
 
         self._rebuild_static()
         self._update_pin_cache()
@@ -188,13 +191,25 @@ class DiagramView(QGraphicsView):
 
     def start_wire(self, pos: QPointF) -> None:
         self.wire_start = self.snap(pos)
+        self.wire_start_pos = self.wire_start
         self.wire_preview_start = self.wire_start
+        # Marca visible del punto inicial
+        marker = QGraphicsEllipseItem(
+            self.wire_start.x() - 5, self.wire_start.y() - 5, 10, 10)
+        marker.setBrush(QColor("#2f80ed"))
+        marker.setPen(QPen(QColor("#0d47a1"), 1))
+        marker.setZValue(6)
+        self.scene.addItem(marker)
+        self._wire_start_marker = marker
+        # Línea de guía (se hará visible al mover el ratón)
         pen = QPen(QColor("#1a73e8"), 2)
         pen.setStyle(Qt.PenStyle.DashLine)
         self._wire_preview_line = self.scene.addLine(
             self.wire_start.x(), self.wire_start.y(),
             self.wire_start.x(), self.wire_start.y(), pen)
         self._wire_preview_line.setZValue(5)
+        self.status_message.emit(
+            "Punto inicial del cable: arrastre al punto final")
 
     def update_wire_preview(self, pos: QPointF) -> None:
         if self._wire_preview_line is not None and self.wire_start is not None:
@@ -205,20 +220,35 @@ class DiagramView(QGraphicsView):
     def finish_wire(self, pos: QPointF) -> None:
         if self.wire_start is not None:
             end = self.snap(pos)
-            w = Wire(self.wire_start.x(), self.wire_start.y(),
-                     end.x(), end.y())
-            self.diagram.add_wire(w)
-            line = QGraphicsLineItem(w.x1, w.y1, w.x2, w.y2)
-            pen = QPen(QColor(w.color), w.width)
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            line.setPen(pen)
-            line.setZValue(1)
-            self.scene.addItem(line)
+            # Si no hay desplazamiento, no crear un cable de longitud cero
+            if (end.x() != self.wire_start.x()
+                    or end.y() != self.wire_start.y()):
+                w = Wire(self.wire_start.x(), self.wire_start.y(),
+                         end.x(), end.y())
+                self.diagram.add_wire(w)
+                line = QGraphicsLineItem(w.x1, w.y1, w.x2, w.y2)
+                pen = QPen(QColor(w.color), w.width)
+                pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+                line.setPen(pen)
+                line.setZValue(1)
+                self.scene.addItem(line)
+                self.status_message.emit("Cable creado")
+        self._clear_wire_state()
+
+    def _clear_wire_state(self) -> None:
         if self._wire_preview_line is not None:
             self.scene.removeItem(self._wire_preview_line)
             self._wire_preview_line = None
+        if self._wire_start_marker is not None:
+            self.scene.removeItem(self._wire_start_marker)
+            self._wire_start_marker = None
         self.wire_start = None
-        self.status_message.emit("Cable creado")
+        self.wire_start_pos = None
+        self._wire_dragging = False
+
+    def cancel_wire(self) -> None:
+        self._clear_wire_state()
+        self.status_message.emit("Cable cancelado")
 
     def set_pending_preview(self, pos: QPointF, symbol: Symbol) -> None:
         if self._pending_preview_item is not None:
@@ -255,6 +285,10 @@ class DiagramView(QGraphicsView):
         pos = self.mouse_canvas_pos(event)
 
         if self.tool == "symbol" and self.pending_symbol is not None:
+            if event.button() == Qt.MouseButton.RightButton:
+                self._remove_pending()
+                self.status_message.emit("Colocación cancelada")
+                return
             symbol = self.symbol_lookup.get(self.pending_symbol.symbol_id)
             if symbol and event.button() == Qt.MouseButton.LeftButton:
                 inst = self.add_symbol_at(pos, symbol)
@@ -263,15 +297,22 @@ class DiagramView(QGraphicsView):
                 self.symbol_selected.emit(inst)
             return
 
-        if self.tool == "wire" and event.button() == Qt.MouseButton.LeftButton:
-            if self.wire_start is None:
-                p = self.nearest_pin(pos)
-                self.start_wire(p if p else pos)
-                self.status_message.emit("Punto inicial del cable")
-            else:
-                p = self.nearest_pin(pos)
-                self.finish_wire(p if p else pos)
-                self._update_pin_cache()
+        if self.tool == "wire":
+            if event.button() == Qt.MouseButton.RightButton:
+                if self.wire_start is not None:
+                    self.cancel_wire()
+                return
+            if event.button() == Qt.MouseButton.LeftButton:
+                if self.wire_start is None:
+                    p = self.nearest_pin(pos)
+                    self.start_wire(p if p else pos)
+                    self._wire_dragging = False
+                else:
+                    # Segundo clic sin arrastre: finalizar (modelo clic-clic)
+                    if not self._wire_dragging:
+                        p = self.nearest_pin(pos)
+                        self.finish_wire(p if p else pos)
+                        self._update_pin_cache()
             return
 
         super().mousePressEvent(event)
@@ -288,11 +329,21 @@ class DiagramView(QGraphicsView):
                 self.update_pending_preview(pos)
             return
         if self.tool == "wire" and self.wire_start is not None:
+            if event.buttons() & Qt.MouseButton.LeftButton:
+                self._wire_dragging = True
             self.update_wire_preview(pos)
             return
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:
+        if (self.tool == "wire" and self.wire_start is not None
+                and self._wire_dragging
+                and event.button() == Qt.MouseButton.LeftButton):
+            pos = self.mouse_canvas_pos(event)
+            p = self.nearest_pin(pos)
+            self.finish_wire(p if p else pos)
+            self._update_pin_cache()
+            return
         super().mouseReleaseEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
