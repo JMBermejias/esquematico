@@ -1,0 +1,29 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+
+# Salida de distribución
+dist/
+
+# PyInstaller
+*.spec.bak
+
+# Herramientas de editor
+.vscode/
+.idea/
+
+# Sistema
+Thumbs.db
+.DS_Store
+
+# Pruebas/cobertura
+.pytest_cache/
+.coverage

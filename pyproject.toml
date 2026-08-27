@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "esquematico"
+version = "1.0.0"
+description = "Generador visual de esquemas eléctricos de cuadros e instalaciones, unifilares y esquemáticos."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Esquemático" }]
+keywords = ["electricidad", "esquemas", "electrotecnia", "unifilar", "qt", "pyside6"]
+dependencies = [
+    "PySide6>=6.6.0",
+]
+
+[project.scripts]
+esquematico = "esquematico.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["esquematico*"]
+
+[tool.setuptools.package-data]
+"esquematico.resources" = ["*.png", "*.ico"]

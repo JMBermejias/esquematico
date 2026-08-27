@@ -1,0 +1,588 @@
+"""Biblioteca de símbolos eléctricos.
+
+Cada símbolo se describe mediante primitivas de dibujo (líneas, círculos,
+rectángulos, arcos, texto/trazos) en un espacio de coordenadas local
+normalizado. La tercera parte del dibujo primitivo permite indicar si el
+elemento es un punto de conexión (pin) sobre el que se pueden enganchar
+cables.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Tuple
+
+
+@dataclass
+class Primitive:
+    kind: str  # line | circle | rect | arc | text | pin
+    args: List[float]
+    style: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class Symbol:
+    id: str
+    name: str
+    category: str
+    primitives: List[Primitive]
+    width: float
+    height: float
+    description: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "category": self.category,
+            "width": self.width,
+            "height": self.height,
+            "description": self.description,
+            "primitives": [
+                {"kind": p.kind, "args": p.args, "style": p.style}
+                for p in self.primitives
+            ],
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Symbol":
+        prims = [
+            Primitive(
+                kind=p["kind"],
+                args=p.get("args", []),
+                style=p.get("style", {}),
+            )
+            for p in data.get("primitives", [])
+        ]
+        return cls(
+            id=data["id"],
+            name=data.get("name", data["id"]),
+            category=data.get("category", "Otros"),
+            width=data.get("width", 100),
+            height=data.get("height", 100),
+            description=data.get("description", ""),
+            primitives=prims,
+        )
+
+
+def _L(*args, **kw) -> Primitive:
+    return Primitive("line", list(args), kw)
+
+
+def _C(*args, **kw) -> Primitive:
+    return Primitive("circle", list(args), kw)
+
+
+def _R(*args, **kw) -> Primitive:
+    return Primitive("rect", list(args), kw)
+
+
+def _A(*args, **kw) -> Primitive:
+    return Primitive("arc", list(args), kw)
+
+
+def _T(*args, **kw) -> Primitive:
+    return Primitive("text", list(args), kw)
+
+
+def _P(x, y, **kw) -> Primitive:
+    return Primitive("pin", [x, y], kw)
+
+
+def _force_breaks(func) -> None:
+    pass
+
+
+def build_library() -> List[Symbol]:
+    """Devuelve la biblioteca completa de símbolos eléctricos."""
+
+    # Nota: coordenadas normalizadas; cada símbolo tiene su propio tamaño.
+
+    symbols = []
+
+    # ---------- Protección (cuadros / unifilar) ----------
+    symbols.append(Symbol(
+        id="breaker_1p",
+        name="Interruptor magnetotérmico 1P",
+        category="Protección",
+        width=36, height=80,
+        description="Disyuntor / magnetotérmico unipolar",
+        primitives=[
+            _L(-8, -40, -8, 40),
+            _L(8, -40, 8, 40),
+            _L(-8, -18, 8, -18),
+            _L(-8, 18, 8, 18),
+            _L(-8, -18, -8, 18),
+            _L(-8, 18, -8, 40),
+            _L(8, 18, 8, 40),
+            _L(-8, -18, -8, -40),
+            _P(0, -45), _P(0, 45),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="breaker_2p",
+        name="Interruptor magnetotérmico 2P",
+        category="Protección",
+        width=76, height=80,
+        description="Disyuntor bipolar",
+        primitives=[
+            _L(-18, -40, -18, 40, color="#2c3e50"),
+            _L(18, -40, 18, 40, color="#2c3e50"),
+            _L(-18, -18, 18, -18),
+            _L(-18, 18, 18, 18),
+            _L(-18, 18, -18, 40),
+            _L(-18, -18, -18, -40),
+            _L(18, 18, 18, 40),
+            _L(18, -18, 18, -40),
+            _L(18, -18, 18, -40),
+            _P(-18, -45), _P(-18, 45),
+            _P(18, -45), _P(18, 45),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="breaker_3p",
+        name="Interruptor magnetotérmico 3P",
+        category="Protección",
+        width=56, height=100,
+        description="Disyuntor tripolar",
+        primitives=[
+            _L(-22, -50, -22, 50),
+            _L(0, -50, 0, 50),
+            _L(22, -50, 22, 50),
+            _L(-22, -22, 22, -22),
+            _L(-22, 22, 22, 22),
+            _L(-22, -38, 22, -38),
+            _L(-22, 38, 22, 38),
+            _P(-22, -55), _P(-22, 55),
+            _P(0, -55), _P(0, 55),
+            _P(22, -55), _P(22, 55),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="diff_switch",
+        name="Interruptor diferencial",
+        category="Protección",
+        width=44, height=100,
+        description="Diferencial (protección contra fugas)",
+        primitives=[
+            _L(-8, -45, -8, 45),
+            _L(8, -45, 8, 45),
+            _L(-8, 45, 8, -45),
+            _L(-14, -30, 0, -20),
+            _L(-8, -16, 8, -30),
+            _L(-22, -35, 22, 22),
+            _L(-22, 30, -22, -35),
+            _L(22, -35, 22, 30),
+            _L(-22, 30, 22, 30),
+            _P(0, -50), _P(0, 50),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="fuse",
+        name="Fusible",
+        category="Protección",
+        width=58, height=50,
+        description="Fusible en serie",
+        primitives=[
+            _L(-25, 0, 0, 0),
+            _R(0, -20, 26, 40),
+            _L(26, 0, 25, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="contactor",
+        name="Contactor / relé",
+        category="Protección",
+        width=50, height=90,
+        description="Contactor trifásico",
+        primitives=[
+            _L(-12, -40, -12, 40),
+            _L(12, -40, 12, 40),
+            _L(-12, -40, 12, 40),
+            _L(0, 40, 0, 30),
+            _L(-12, 0, 12, 0),
+            _L(-12, 0, 12, 0),
+            _L(-20, 40, -12, 40),
+            _P(-12, -45), _P(-12, 45),
+            _P(12, -45), _P(12, 45),
+        ],
+    ))
+
+    # ---------- Interruptores / conmutadores ----------
+    symbols.append(Symbol(
+        id="switch_no",
+        name="Interruptor NA (normalmente abierto)",
+        category="Interruptores",
+        width=46, height=40,
+        description="Contacto normalmente abierto",
+        primitives=[
+            _L(-20, 0, 0, 18),
+            _L(0, 18, 20, 18),
+            _P(-20, 0), _P(20, 18),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="switch_nc",
+        name="Contacto NC (normalmente cerrado)",
+        category="Interruptores",
+        width=46, height=40,
+        description="Contacto normalmente cerrado",
+        primitives=[
+            _L(-20, 0, 0, 18),
+            _L(0, 18, 20, 18),
+            _L(0, 18, 20, 0),
+            _P(-20, 0), _P(20, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="switch_spst",
+        name="Interruptor simple (SPST)",
+        category="Interruptores",
+        width=46, height=40,
+        description="Interruptor unipolar",
+        primitives=[
+            _L(-20, 0, 0, -18),
+            _L(0, -18, 20, 0),
+            _P(-20, 0), _P(20, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="pushbutton_no",
+        name="Pulsador NA",
+        category="Interruptores",
+        width=46, height=44,
+        description="Pulsador normalmente abierto",
+        primitives=[
+            _L(-20, 0, 0, 18),
+            _L(0, 18, 20, 18),
+            _L(0, 30, 20, 30),
+            _L(0, 30, 0, 0),
+            _P(-20, 0), _P(20, 18),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="thermal_relay",
+        name="Relé térmico",
+        category="Protección",
+        width=16, height=90,
+        description="Relé térmico de protección de motor",
+        primitives=[
+            _L(0, -40, 0, -10),
+            _L(-8, -10, 8, -10),
+            _L(0, -10, 0, 10),
+            _L(-8, 10, 8, 10),
+            _L(0, 10, 0, 40),
+            _L(-8, -40, 8, -40),
+            _L(-8, 40, 8, 40),
+            _L(8, -40, 8, -10),
+            _L(8, 10, 8, 40),
+            _L(-8, -40, -8, -10),
+            _L(-8, 10, -8, 40),
+            _P(0, -45), _P(0, 45),
+        ],
+    ))
+
+    # ---------- Receptores / cargas ----------
+    symbols.append(Symbol(
+        id="motor_3p",
+        name="Motor trifásico (M)",
+        category="Receptores",
+        width=78, height=78,
+        description="Motor trifásico",
+        primitives=[
+            _C(0, 0, 36),
+            _L(-32, -14, 26, -26),
+            _L(32, -16, -26, 26),
+            _T(-12, -8, "M"),
+            _L(-45, -10, -45, -45),
+            _L(45, -10, 45, -45),
+            _L(45, -10, 45, -45),
+            _L(-45, -45, 45, -45),
+            _L(-45, -10, 45, -10),
+            _P(-45, 20), _P(0, 20), _P(45, 20),
+            _P(-45, -50), _P(0, -50), _P(45, -50),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="lamp",
+        name="Lámpara / lámpara de señalización",
+        category="Receptores",
+        width=48, height=48,
+        description="Lámpara incandescente o de señalización",
+        primitives=[
+            _C(0, 0, 22),
+            _L(0, -14, 0, 14),
+            _L(-14, 0, 14, 0),
+            _L(0, 0, 0, 0),
+            _L(-18, 0, -22, 0),
+            _L(18, 0, 22, 0),
+            _L(0, 22, 0, 26),
+            _L(0, -22, 0, -26),
+            _P(0, -26), _P(0, 26),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="lamp_x",
+        name="Lámpara de incandescencia (X)",
+        category="Receptores",
+        width=48, height=48,
+        description="Lámpara de incandescencia",
+        primitives=[
+            _C(0, 0, 22),
+            _L(-14, -14, 14, 14),
+            _L(-14, 14, 14, -14),
+            _L(0, 22, 0, 26),
+            _L(0, -22, 0, -26),
+            _P(0, -26), _P(0, 26),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="socket",
+        name="Base de enchufe / tomacorriente",
+        category="Receptores",
+        width=50, height=40,
+        description="Base de toma de corriente",
+        primitives=[
+            _L(-10, -6, -10, 20),
+            _L(10, -6, 10, 20),
+            _L(-10, -6, -22, -6),
+            _L(10, -6, 22, -6),
+            _P(-22, -6), _P(22, -6),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="resistor",
+        name="Resistencia",
+        category="Receptores",
+        width=50, height=36,
+        description="Resistencia (representación zigzag)",
+        primitives=[
+            _L(-22, 0, 0, -14),
+            _L(0, -14, 12, 14),
+            _L(12, 14, 22, 0),
+            _L(-22, 0, -25, 0),
+            _L(22, 0, 25, 0),
+            _P(-25, 0), _P(25, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="capacitor",
+        name="Condensador",
+        category="Receptores",
+        width=36, height=36,
+        description="Condensador / capacitor",
+        primitives=[
+            _L(-22, 0, -2, 0),
+            _L(2, 0, 22, 0),
+            _L(0, -7, 0, 7),
+            _L(2, -7, 2, 7),
+            _L(2, -7, 2, 7),
+            _P(-22, 0), _P(22, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="transformer",
+        name="Transformador / fuente",
+        category="Receptores",
+        width=60, height=56,
+        description="Transformador monofásico",
+        primitives=[
+            _L(-20, -22, 20, -22),
+            _L(-24, -26, 24, -26),
+            _L(-20, -22, -24, -26),
+            _L(20, -22, 24, -26),
+            _L(-20, 22, 20, 22),
+            _L(-24, 26, 24, 26),
+            _L(-20, 22, -24, 26),
+            _L(20, 22, 24, 26),
+            _L(0, -26, 0, -34),
+            _L(0, 26, 0, 34),
+            _P(0, -34), _P(0, 34),
+        ],
+    ))
+
+    # ---------- Tierra / alimentación ----------
+    symbols.append(Symbol(
+        id="ground",
+        name="Toma de tierra",
+        category="Tierra y alimentación",
+        width=46, height=36,
+        description="Conexión a tierra",
+        primitives=[
+            _L(0, -18, 0, -8),
+            _L(0, -8, -18, 0),
+            _L(-18, 0, 18, 0),
+            _L(-12, 4, 12, 4),
+            _L(-6, 8, 6, 8),
+            _P(0, -18),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="supply_1p",
+        name="Red monofásica (L, N)",
+        category="Tierra y alimentación",
+        width=46, height=40,
+        description="Alimentación monofásica",
+        primitives=[
+            _L(-6, -20, -6, -8),
+            _L(6, -20, 6, -8),
+            _L(-6, -8, 6, -8),
+            _L(-6, -8, -6, 0),
+            _L(6, -8, 6, 0),
+            _L(0, 0, 0, 0),
+            _P(-6, 0), _P(6, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="supply_3p",
+        name="Red trifásica 3L+N",
+        category="Tierra y alimentación",
+        width=50, height=36,
+        description="Alimentación trifásica",
+        primitives=[
+            _L(-18, -18, -18, -8),
+            _L(0, -18, 0, -8),
+            _L(18, -18, 18, -8),
+            _L(-18, -8, 18, -8),
+            _L(-18, -8, -18, 0),
+            _L(0, -8, 0, 0),
+            _L(18, -8, 18, 0),
+            _P(-18, 0), _P(0, 0), _P(18, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="battery",
+        name="Batería / fuente CC",
+        category="Tierra y alimentación",
+        width=40, height=44,
+        description="Batería o pila",
+        primitives=[
+            _L(-8, -16, -8, -6),
+            _L(8, -16, 8, -6),
+            _L(-8, -16, 8, -16),
+            _L(8, -6, 8, 6),
+            _L(8, 6, 8, 16),
+            _L(-8, 6, -8, 16),
+            _L(-8, 16, 8, 16),
+            _L(-8, 6, 8, 6),
+            _P(0, -20), _P(0, 20),
+        ],
+    ))
+
+    # ---------- Lógica / control ----------
+    symbols.append(Symbol(
+        id="coil",
+        name="Bobina de relé / contactor",
+        category="Lógica y control",
+        width=46, height=52,
+        description="Bobina",
+        primitives=[
+            _L(-8, 0, 8, 0),
+            _L(-20, 0, 20, 0),
+            _L(8, -8, 8, 8),
+            _L(-20, -20, 20, 20),
+            _L(-20, 20, 20, -20),
+            _L(-22, 0, -28, 0),
+            _L(22, 0, 28, 0),
+            _P(-28, 0), _P(28, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="timer",
+        name="Temporizador / relé de tiempo",
+        category="Lógica y control",
+        width=56, height=56,
+        description="Temporizador",
+        primitives=[
+            _R(0, 0, 40, 40),
+            _L(20, 4, 20, 12),
+            _T(22, 16, "t"),
+            _T(6, 16, "T"),
+            _L(-6, 20, 0, 20),
+            _L(40, 20, 46, 20),
+            _P(-6, 20), _P(46, 20),
+        ],
+    ))
+
+    # ---------- Instalación / cuadro ----------
+    symbols.append(Symbol(
+        id="panel",
+        name="Cuadro eléctrico",
+        category="Instalación",
+        width=90, height=120,
+        description="Cuadro general / caja de distribución",
+        primitives=[
+            _R(0, 0, 90, 120, rounded=True),
+            _L(6, 8, 6, 34),
+            _L(30, 8, 30, 34),
+            _R(14, 20, 40, 60, style="panel"),
+            _L(12, 12, 78, 12),
+            _L(12, 12, 12, 40),
+            _L(78, 12, 78, 40),
+            _L(6, 40, 50, 40),
+            _L(50, 40, 50, 90),
+            _L(6, 90, 50, 90),
+            _L(50, 40, 84, 40),
+            _L(78, 40, 78, 90),
+            _L(60, 105, 60, 118),
+            _P(45, 118),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="label",
+        name="Etiqueta / texto",
+        category="Instalación",
+        width=80, height=30,
+        description="Texto libre",
+        primitives=[
+            _T(0, 10, "Texto"),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="junction",
+        name="Nudo / empalme",
+        category="Instalación",
+        width=14, height=14,
+        description="Nodo de conexión",
+        primitives=[
+            _C(0, 0, 7, filled=True),
+        ],
+    ))
+
+    return symbols
+
+
+def symbol_by_id(symbols: List[Symbol], symbol_id: str) -> Symbol:
+    for s in symbols:
+        if s.id == symbol_id:
+            return s
+    raise KeyError(f"Símbolo no encontrado: {symbol_id}")
+
+
+def categories(symbols: List[Symbol]) -> List[str]:
+    seen: List[str] = []
+    for s in symbols:
+        if s.category not in seen:
+            seen.append(s.category)
+    return seen
