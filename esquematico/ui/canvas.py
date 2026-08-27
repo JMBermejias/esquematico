@@ -86,6 +86,7 @@ class DiagramView(QGraphicsView):
 
         # Caché de render (elementos gráficos propios de los símbolos)
         self._symbol_items: Dict[int, QGraphicsItem] = {}
+        self._wire_items: Dict[int, QGraphicsLineItem] = {}
         self._pending_preview_item = None
         self._wire_preview_line: Optional[QGraphicsLineItem] = None
         self._wire_start_marker: Optional[QGraphicsEllipseItem] = None
@@ -100,17 +101,13 @@ class DiagramView(QGraphicsView):
     def _rebuild_static(self) -> None:
         self.scene.clear()
         self._symbol_items.clear()
+        self._wire_items.clear()
         self._pending_preview_item = None
         self._wire_preview_line = None
 
         # Cables
         for w in self.diagram.wires:
-            line = QGraphicsLineItem(w.x1, w.y1, w.x2, w.y2)
-            pen = QPen(QColor(w.color), w.width)
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            line.setPen(pen)
-            line.setZValue(1)
-            self.scene.addItem(line)
+            self._make_wire_item(w)
 
         # Símbolos
         for inst in self.diagram.symbols:
@@ -118,6 +115,12 @@ class DiagramView(QGraphicsView):
             item.setZValue(10)
             self.scene.addItem(item)
             self._symbol_items[id(inst)] = item
+
+    def _make_wire_item(self, w: Wire) -> QGraphicsLineItem:
+        item = WireItem(w, self)
+        self.scene.addItem(item)
+        self._wire_items[id(w)] = item
+        return item
 
     def _update_pin_cache(self) -> None:
         """Recalcula posiciones absolutas de los pines de cada símbolo."""
@@ -226,12 +229,7 @@ class DiagramView(QGraphicsView):
                 w = Wire(self.wire_start.x(), self.wire_start.y(),
                          end.x(), end.y())
                 self.diagram.add_wire(w)
-                line = QGraphicsLineItem(w.x1, w.y1, w.x2, w.y2)
-                pen = QPen(QColor(w.color), w.width)
-                pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-                line.setPen(pen)
-                line.setZValue(1)
-                self.scene.addItem(line)
+                self._make_wire_item(w)
                 self.status_message.emit("Cable creado")
         self._clear_wire_state()
 
@@ -315,6 +313,12 @@ class DiagramView(QGraphicsView):
                         self._update_pin_cache()
             return
 
+        if self.tool == "select" and event.button() == Qt.MouseButton.LeftButton:
+            item = self.itemAt(pos)
+            if item is not None and item.data(0) == "wire":
+                self.select_wire(item.data(1))
+                return
+
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
@@ -360,26 +364,45 @@ class DiagramView(QGraphicsView):
             return item.inst
         return None
 
+    def find_wire_at(self, pos: QPointF) -> Optional[Wire]:
+        item = self.itemAt(pos)
+        if item is not None and item.data(0) == "wire":
+            return item.data(1)
+        return None
+
     def delete_selected(self) -> None:
-        selected = [it for it in self.scene.selectedItems()
-                    if isinstance(it, SymbolItem)]
-        if not selected:
-            return
-        for it in selected:
-            inst = it.inst
-            if inst in self.diagram.symbols:
-                self.diagram.symbols.remove(inst)
-            self.scene.removeItem(it)
-            self._symbol_items.pop(id(inst), None)
-        self._update_pin_cache()
-        self.symbol_selected.emit(None)
-        self.status_message.emit("Símbolo(s) eliminados")
+        removed_any = False
+        for it in list(self.scene.selectedItems()):
+            if isinstance(it, SymbolItem):
+                inst = it.inst
+                if inst in self.diagram.symbols:
+                    self.diagram.symbols.remove(inst)
+                self.scene.removeItem(it)
+                self._symbol_items.pop(id(inst), None)
+                removed_any = True
+            elif it.data(0) == "wire":
+                w = it.data(1)
+                if w in self.diagram.wires:
+                    self.diagram.wires.remove(w)
+                self.scene.removeItem(it)
+                self._wire_items.pop(id(w), None)
+                removed_any = True
+        if removed_any:
+            self._update_pin_cache()
+            self.symbol_selected.emit(None)
+            self.status_message.emit("Elemento(s) eliminados")
 
     def select_symbol(self, inst: Optional[SymbolInstance]) -> None:
         for it in self.scene.items():
             if isinstance(it, SymbolItem):
                 it.setSelected(it.inst is inst)
         self.symbol_selected.emit(inst)
+
+    def select_wire(self, w: Optional[Wire]) -> None:
+        for it in self.scene.items():
+            if it.data(0) == "wire":
+                it.setSelected(it.data(1) is w)
+        self.symbol_selected.emit(None)
 
     def remove_symbol(self, inst: SymbolInstance) -> None:
         if inst in self.diagram.symbols:
@@ -404,6 +427,35 @@ def _rotate_point(x: float, y: float, cx: float, cy: float,
     cos, sin = math.cos(rad), math.sin(rad)
     dx, dy = x - cx, y - cy
     return cx + dx * cos - dy * sin, cy + dx * sin + dy * cos
+
+
+class WireItem(QGraphicsLineItem):
+    """Item de cable que se resalta al ser seleccionado."""
+
+    def __init__(self, w: Wire, view: "DiagramView") -> None:
+        super().__init__(w.x1, w.y1, w.x2, w.y2)
+        self.wire = w
+        self.view = view
+        pen = QPen(QColor(w.color), w.width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        self._base_pen = pen
+        self.setPen(pen)
+        self.setZValue(1)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+        self.setData(0, "wire")
+        self.setData(1, w)
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:
+        if self.isSelected():
+            sel_pen = QPen(QColor("#2196f3"), self._base_pen.width() + 3)
+            sel_pen.setStyle(Qt.PenStyle.DashLine)
+            sel_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.save()
+            painter.setPen(sel_pen)
+            painter.drawLine(self.line())
+            painter.restore()
+        painter.setPen(self._base_pen)
+        painter.drawLine(self.line())
 
 
 class SymbolItem(QGraphicsItem):
