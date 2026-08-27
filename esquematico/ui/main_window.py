@@ -266,6 +266,7 @@ class MainWindow(QMainWindow):
 
     def _build_docks(self) -> None:
         self.palette = SymbolPalette(list(self.library.values()))
+        self.palette.symbol_activated.connect(self._palette_symbol_selected)
         dock_palette = QDockWidget("Biblioteca", self)
         dock_palette.setWidget(self.palette)
         dock_palette.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable
@@ -296,6 +297,13 @@ class MainWindow(QMainWindow):
         self.view.set_tool("symbol")
         self.statusBar().showMessage(
             "Elija un símbolo en la biblioteca para colocarlo")
+
+    def _palette_symbol_selected(self, symbol: Symbol) -> None:
+        """Arma el símbolo elegido en la biblioteca para colocarlo en el lienzo."""
+        self.view.set_symbol(symbol)
+        self.statusBar().showMessage(
+            f"Coloque el símbolo «{symbol.name}» haciendo clic en el lienzo "
+            "(clic con el botón derecho cancela)")
 
     def toggle_grid(self) -> None:
         self.view.scene.show_grid = self.act_grid.isChecked()

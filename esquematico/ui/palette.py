@@ -7,10 +7,12 @@ from typing import List, Optional
 from PySide6.QtCore import QPointF, Qt, Signal
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import (
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -108,20 +110,23 @@ class SymbolPalette(QWidget):
                        (not text or text in s.name.lower() or text in s.id.lower())]
             if not members:
                 continue
-            header = QListWidgetItem(cat)
+            header = QListWidgetItem(cat.upper())
             header.setFlags(Qt.ItemFlag.NoItemFlags)
             font = header.font()
             font.setBold(True)
+            font.setPointSizeF(10)
             header.setFont(font)
             header.setForeground(QColor("#1565c0"))
             self.list.addItem(header)
             for s in members:
-                item = QListWidgetItem(s.name)
+                item = QListWidgetItem()
                 item.setData(Qt.ItemDataRole.UserRole, s)
                 self.list.addItem(item)
-                row = self.list.row(item)
-                self.list.setItemWidget(item, SymbolPreview(s))
-                item.setSizeHint(SymbolPreview(s).sizeHint())
+                row = SymbolRow(s)
+                row.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                  QSizePolicy.Policy.Fixed)
+                self.list.setItemWidget(item, row)
+                item.setSizeHint(row.sizeHint())
 
     def _apply_filter(self, text: str) -> None:
         self._populate(text)
@@ -130,3 +135,39 @@ class SymbolPalette(QWidget):
         symbol = item.data(Qt.ItemDataRole.UserRole)
         if symbol is not None:
             self.symbol_activated.emit(symbol)
+
+
+class SymbolRow(QWidget):
+    """Fila de la biblioteca: miniatura + nombre + descripción."""
+
+    def __init__(self, symbol: Symbol, parent=None) -> None:
+        super().__init__(parent)
+        self.symbol = symbol
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(10)
+
+        self.preview = SymbolPreview(symbol)
+        layout.addWidget(self.preview, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_col = QVBoxLayout()
+        text_col.setContentsMargins(0, 0, 0, 0)
+        text_col.setSpacing(2)
+
+        self.name = QLabel(symbol.name)
+        self.name.setWordWrap(True)
+        name_font = self.name.font()
+        name_font.setBold(True)
+        self.name.setFont(name_font)
+        text_col.addWidget(self.name)
+
+        if symbol.description:
+            self.desc = QLabel(symbol.description)
+            self.desc.setWordWrap(True)
+            self.desc.setStyleSheet("color: #5a6b7e;")
+            sf = self.desc.font()
+            sf.setPointSizeF(8)
+            self.desc.setFont(sf)
+            text_col.addWidget(self.desc)
+
+        layout.addLayout(text_col, 1)
