@@ -570,6 +570,235 @@ def build_library() -> List[Symbol]:
         ],
     ))
 
+    # ---------- Electrónica ----------
+    symbols.append(Symbol(
+        id="diode",
+        name="Diodo",
+        category="Electrónica",
+        width=50, height=28,
+        description="Diodo semiconductor (ánodo-cátodo)",
+        primitives=[
+            _L(-25, 0, -10, 0),
+            _L(-10, 0, 10, -13),
+            _L(-10, 0, 10, 13),
+            _L(10, -13, 10, 13),
+            _L(10, 0, 25, 0),
+            _P(-25, 0), _P(25, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="led",
+        name="LED",
+        category="Electrónica",
+        width=54, height=40,
+        description="Diodo emisor de luz",
+        primitives=[
+            _L(-25, 0, -10, 0),
+            _L(-10, 0, 10, -13),
+            _L(-10, 0, 10, 13),
+            _L(10, -13, 10, 13),
+            _L(10, 0, 25, 0),
+            _L(12, 0, 24, -11),
+            _L(19, -16, 24, -11),
+            _L(24, -11, 24, -17),
+            _L(12, 0, 24, 11),
+            _L(19, 16, 24, 11),
+            _L(24, 11, 24, 17),
+            _P(-25, 0), _P(25, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="zener",
+        name="Diodo Zener",
+        category="Electrónica",
+        width=50, height=28,
+        description="Diodo Zener (regulación de tensión)",
+        primitives=[
+            _L(-25, 0, -10, 0),
+            _L(-10, 0, 10, -13),
+            _L(-10, 0, 10, 13),
+            _L(10, -13, 10, 13),
+            _L(10, 13, 17, 6),
+            _L(10, 0, 25, 0),
+            _P(-25, 0), _P(25, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="photodiode",
+        name="Fotodiodo",
+        category="Electrónica",
+        width=58, height=40,
+        description="Diodo sensible a la luz",
+        primitives=[
+            _L(-25, 0, -10, 0),
+            _L(-10, 0, 10, -13),
+            _L(-10, 0, 10, 13),
+            _L(10, -13, 10, 13),
+            _L(10, 0, 25, 0),
+            _L(-42, -12, -34, -20),
+            _L(-38, -22, -34, -20),
+            _L(-34, -20, -34, -14),
+            _L(-42, 12, -34, 20),
+            _L(-38, 22, -34, 20),
+            _L(-34, 20, -34, 14),
+            _P(-25, 0), _P(25, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="transistor_npn",
+        name="Transistor NPN",
+        category="Electrónica",
+        width=52, height=40,
+        description="Transistor bipolar NPN",
+        primitives=[
+            _L(-26, 0, -12, 0),
+            _L(-12, -16, -12, 16),
+            _L(-12, -16, 22, -16),
+            _L(-12, 16, 22, 16),
+            _L(22, 16, 17, 10),
+            _L(22, 16, 17, 22),
+            _P(-26, 0), _P(22, -16), _P(22, 16),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="transistor_pnp",
+        name="Transistor PNP",
+        category="Electrónica",
+        width=52, height=40,
+        description="Transistor bipolar PNP",
+        primitives=[
+            _L(-26, 0, -12, 0),
+            _L(-12, -16, -12, 16),
+            _L(-12, -16, 22, -16),
+            _L(-12, 16, 22, 16),
+            _L(-12, 16, -7, 10),
+            _L(-12, 16, -7, 22),
+            _P(-26, 0), _P(22, -16), _P(22, 16),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="scr",
+        name="Tiristor (SCR)",
+        category="Electrónica",
+        width=50, height=40,
+        description="Rectificador controlado de silicio",
+        primitives=[
+            _L(-25, 0, -10, 0),
+            _L(-10, 0, 10, -12),
+            _L(-10, 0, 10, 12),
+            _L(10, -12, 10, 12),
+            _L(10, 0, 25, 0),
+            _L(10, 8, 18, 16),
+            _P(-25, 0), _P(25, 0), _P(18, 16),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="opamp",
+        name="Amplificador operacional",
+        category="Electrónica",
+        width=56, height=30,
+        description="Operacional (op-amp): entrada 2, salida 1",
+        primitives=[
+            _L(-8, 0, 20, -14),
+            _L(20, -14, 20, 14),
+            _L(20, 14, -8, 0),
+            _L(-18, -8, -8, -8),
+            _L(-18, 8, -8, 8),
+            _L(20, 0, 28, 0),
+            _T(-4, -11, "-"),
+            _T(-4, 9, "+"),
+            _P(-18, -8), _P(-18, 8), _P(28, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="inductor",
+        name="Bobina / inductor",
+        category="Electrónica",
+        width=48, height=14,
+        description="Inductor o bobina",
+        primitives=[
+            _L(-24, 0, -18, 0),
+            _L(-18, 0, -15, -5.2),
+            _L(-15, -5.2, -12, -6),
+            _L(-12, -6, -9, -5.2),
+            _L(-9, -5.2, -6, 0),
+            _L(-6, 0, -3, -5.2),
+            _L(-3, -5.2, 0, -6),
+            _L(0, -6, 3, -5.2),
+            _L(3, -5.2, 6, 0),
+            _L(6, 0, 9, -5.2),
+            _L(9, -5.2, 12, -6),
+            _L(12, -6, 15, -5.2),
+            _L(15, -5.2, 18, 0),
+            _L(18, 0, 24, 0),
+            _P(-24, 0), _P(24, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="potentiometer",
+        name="Potenciómetro",
+        category="Electrónica",
+        width=50, height=40,
+        description="Resistencia variable con cursor",
+        primitives=[
+            _L(-22, 0, -11, -12),
+            _L(-11, -12, 0, 12),
+            _L(0, 12, 11, -12),
+            _L(11, -12, 22, 0),
+            _L(-25, 0, -22, 0),
+            _L(22, 0, 25, 0),
+            _L(0, -2, 0, 16),
+            _L(0, 16, -5, 22),
+            _L(0, 16, 5, 22),
+            _P(-25, 0), _P(25, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="crystal",
+        name="Oscilador de cuarzo",
+        category="Electrónica",
+        width=48, height=18,
+        description="Cristal / cuarzo",
+        primitives=[
+            _L(-24, 0, -16, 0),
+            _L(16, 0, 24, 0),
+            _R(-16, -8, 32, 16),
+            _L(-2, -8, -2, 8),
+            _L(2, -8, 2, 8),
+            _P(-24, 0), _P(24, 0),
+        ],
+    ))
+
+    symbols.append(Symbol(
+        id="ic_chip",
+        name="Circuito integrado (CI)",
+        category="Electrónica",
+        width=48, height=36,
+        description="Chip / circuito integrado de pines",
+        primitives=[
+            _R(-18, -12, 36, 24),
+            _L(-18, -6, -24, -6),
+            _L(-18, 6, -24, 6),
+            _L(18, -6, 24, -6),
+            _L(18, 6, 24, 6),
+            _L(0, -12, 0, -18),
+            _L(0, 12, 0, 18),
+            _P(-24, -6), _P(-24, 6),
+            _P(24, -6), _P(24, 6),
+            _P(0, -18), _P(0, 18),
+        ],
+    ))
+
     return symbols
 
 
