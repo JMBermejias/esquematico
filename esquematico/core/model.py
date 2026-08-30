@@ -65,6 +65,18 @@ class Wire:
         )
 
 
+DEFAULT_METADATA: Dict[str, str] = {
+    "proyecto": "",
+    "cliente": "",
+    "empresa": "",
+    "autor": "",
+    "fecha": "",
+    "escala": "",
+    "plano": "",
+    "revision": "",
+}
+
+
 class Diagram:
     """Documento completo de esquema eléctrico."""
 
@@ -76,6 +88,7 @@ class Diagram:
         self.height: float = 1000.0
         self.grid_size: float = 10.0
         self.background: str = "#ffffff"
+        self.metadata: Dict[str, str] = dict(DEFAULT_METADATA)
 
     def add_symbol(self, symbol: SymbolInstance) -> None:
         self.symbols.append(symbol)
@@ -90,6 +103,7 @@ class Diagram:
             "height": self.height,
             "grid_size": self.grid_size,
             "background": self.background,
+            "metadata": self.metadata,
             "symbols": [s.to_dict() for s in self.symbols],
             "wires": [w.to_dict() for w in self.wires],
         }
@@ -114,6 +128,8 @@ class Diagram:
         diagram.height = diag_data.get("height", 1000.0)
         diagram.grid_size = diag_data.get("grid_size", 10.0)
         diagram.background = diag_data.get("background", "#ffffff")
+        meta = diag_data.get("metadata")
+        diagram.metadata = {**DEFAULT_METADATA, **(meta or {})}
         diagram.symbols = [
             SymbolInstance.from_dict(s) for s in diag_data.get("symbols", [])
         ]

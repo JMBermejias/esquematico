@@ -230,3 +230,105 @@ class DiagramRenderer:
             self.draw_symbol(inst, symbol,
                              selected=(selected == id(inst)),
                              draw_pins=draw_pins)
+        self.draw_sheet()
+
+    # ------------------------------------------------------------------
+    # Plano: marco de hoja y cajetín de datos del proyecto
+    # ------------------------------------------------------------------
+    SHEET_MARGIN = 25.0
+    BLOCK_W = 360.0
+    BLOCK_H = 132.0
+
+    def draw_sheet(self) -> None:
+        """Dibuja el marco de la hoja (borde del plano)."""
+        p = self.painter
+        w, h = self.diagram.width, self.diagram.height
+        m = self.SHEET_MARGIN
+        p.save()
+        pen = QPen(QColor("#1a237e"), 3)
+        p.setPen(pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(QRectF(m, m, w - 2 * m, h - 2 * m))
+        p.restore()
+
+    def draw_title_block(self) -> None:
+        """Dibuja el cajetín de datos del proyecto en la esquina inferior
+        derecha del plano."""
+        p = self.painter
+        w, h = self.diagram.width, self.diagram.height
+        m = self.SHEET_MARGIN
+        bw, bh = self.BLOCK_W, self.BLOCK_H
+        bx = w - m - bw
+        by = h - m - bh
+        meta = self.diagram.metadata
+
+        p.save()
+        # Marco exterior del cajetín
+        pen = QPen(QColor("#1a237e"), 2)
+        p.setPen(pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(QRectF(bx, by, bw, bh))
+
+        # Banda de cabecera
+        header_h = 22
+        p.fillRect(QRectF(bx, by, bw, header_h), QColor("#bcd9f6"))
+        f = QFont("Segoe UI", 10)
+        f.setBold(True)
+        p.setFont(f)
+        p.setPen(QPen(QColor("#0d47a1"), 1))
+        p.drawText(QRectF(bx + 4, by + 2, bw - 8, header_h - 4),
+                   Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                   "PLANO DE PROYECTO ELÉCTRICO")
+
+        # Nombre del proyecto (fila destacada)
+        f2 = QFont("Segoe UI", 12)
+        f2.setBold(True)
+        p.setFont(f2)
+        p.setPen(QPen(QColor("#1a237e"), 1))
+        proyecto = meta.get("proyecto") or "PROYECTO"
+        p.drawText(QRectF(bx + 4, by + header_h, bw - 8, 22),
+                   Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                   proyecto)
+
+        # Variables de celda
+        thin = QPen(QColor("#90a4ae"), 1)
+        yy = by + header_h + 22
+        row_h = 26
+
+        def _cell(label: str, value: str, x: float, cw: float,
+                  rh: float) -> None:
+            lf = QFont("Segoe UI", 8)
+            lf.setBold(True)
+            p.setFont(lf)
+            p.setPen(QPen(QColor("#0d47a1"), 1))
+            p.drawText(QRectF(x + 3, yy + 1, cw - 6, 12),
+                       Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                       label)
+            p.setFont(QFont("Segoe UI", 9))
+            p.setPen(QPen(QColor("#1a237e"), 1))
+            p.drawText(QRectF(x + 3, yy + 12, cw - 6, rh - 12),
+                       Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                       value or "")
+            p.setPen(thin)
+            p.drawLine(x, yy + rh, x + cw, yy + rh)
+            p.drawLine(x + cw, yy, x + cw, yy + rh)
+
+        c1 = int(bw * 0.50)
+        c2 = int(bw * 0.28)
+        c3 = bw - c1 - c2
+
+        _cell("CLIENTE", meta.get("cliente"), bx, c1, row_h)
+        _cell("ESCALA", meta.get("escala"), bx + c1, c2, row_h)
+        _cell("FECHA", meta.get("fecha"), bx + c1 + c2, c3, row_h)
+        yy += row_h
+
+        _cell("DISEÑO / AUTOR", meta.get("autor"), bx, c1, row_h)
+        _cell("PLANO Nº", meta.get("plano"), bx + c1, c2, row_h)
+        _cell("REV", meta.get("revision"), bx + c1 + c2, c3, row_h)
+        yy += row_h
+
+        _cell("EMPRESA", meta.get("empresa"), bx, c1, row_h)
+        _cell("FORMATO", f"{int(w)}×{int(h)}", bx + c1, c2, row_h)
+        _cell("FECHA PROY", meta.get("fecha"), bx + c1 + c2, c3, row_h)
+
+        p.restore()

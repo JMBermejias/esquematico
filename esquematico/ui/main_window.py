@@ -28,6 +28,7 @@ from ..core.model import Diagram, SymbolInstance
 from ..symbols.library import Symbol, build_library, symbol_by_id
 from .canvas import DiagramView
 from .palette import SymbolPalette
+from .project_dialog import ProjectDialog
 from .properties import PropertiesPanel
 
 STYLE = """
@@ -195,6 +196,10 @@ class MainWindow(QMainWindow):
                                         self.view.delete_selected, "Supr"))
         m_editar.addAction(self._action("Rotar 90° selección",
                                         self.rotate_selected, "R"))
+
+        m_proyecto = mbar.addMenu("&Proyecto")
+        m_proyecto.addAction(self._action("Datos del proyecto...",
+                                          self.project_data))
 
         m_ver = mbar.addMenu("&Ver")
         self.act_grid = self._action("Mostrar cuadrícula", self.toggle_grid,
@@ -447,6 +452,18 @@ class MainWindow(QMainWindow):
 
     def _confirm_discard(self) -> bool:
         return True
+
+    # ------------------------------------------------------------------
+    # Datos del proyecto (cajetín del plano)
+    # ------------------------------------------------------------------
+    def project_data(self) -> None:
+        dlg = ProjectDialog(self, self.diagram.metadata)
+        if dlg.exec():
+            self.diagram.metadata.update(dlg.values())
+            if not self.diagram.metadata.get("proyecto"):
+                self.diagram.metadata["proyecto"] = self.diagram.name
+            self.view.scene.update()
+            self.statusBar().showMessage("Datos del proyecto actualizados")
 
     # ------------------------------------------------------------------
     # Exportación

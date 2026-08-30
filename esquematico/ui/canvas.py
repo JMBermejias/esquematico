@@ -46,6 +46,8 @@ class DiagramScene(QGraphicsScene):
         renderer.draw_background()
         if self.show_grid:
             renderer.draw_grid(True)
+        renderer.draw_sheet()
+        renderer.draw_title_block()
 
 
 class DiagramView(QGraphicsView):
