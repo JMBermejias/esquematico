@@ -5,5 +5,5 @@ Aplicación de escritorio para crear de forma visual esquemas eléctricos
 de cuadros e instalaciones, unifilares y esquemáticos.
 """
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 __appname__ = "Esquemático"
