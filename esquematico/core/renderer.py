@@ -49,19 +49,21 @@ class DiagramRenderer:
         p.fillRect(rect, QColor(self.diagram.background))
 
     def draw_grid(self, grid_on: bool = True) -> None:
+        """Dibuja la cuadrícula como puntos (referencias) para facilitar la
+        alineación de los elementos del plano."""
         if not grid_on:
             return
         p = self.painter
         g = self.diagram.grid_size
-        pen = QPen(QColor("#e8f0fb"), 1)
+        pen = QPen(QColor("#8fb7e4"), 2.0)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         p.setPen(pen)
-        x = 0.0
-        while x <= self.diagram.width:
-            p.drawLine(QPointF(x, 0), QPointF(x, self.diagram.height))
-            x += g
         y = 0.0
         while y <= self.diagram.height:
-            p.drawLine(QPointF(0, y), QPointF(self.diagram.width, y))
+            x = 0.0
+            while x <= self.diagram.width:
+                p.drawPoint(QPointF(x, y))
+                x += g
             y += g
 
     def draw_wires(self, wires: List[Wire]) -> None:

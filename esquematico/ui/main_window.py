@@ -160,6 +160,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{__appname__} - {self.diagram.name}")
         self.resize(1280, 800)
         self.setStyleSheet(STYLE)
+        self.showMaximized()
 
         self._build_central()
         self._build_docks()
@@ -259,6 +260,13 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
         tb.addAction(self._action("- zoom", lambda: self.zoom_view(1 / 1.2)))
         tb.addAction(self._action("+ zoom", lambda: self.zoom_view(1.2)))
+        tb.addSeparator()
+        # Puntos de referencia de la cuadrícula: mostrar/ocultar con un clic
+        act = self._action("Puntos de cuadrícula", self.toggle_grid,
+                           checkable=True)
+        act.setChecked(True)
+        self.act_grid.setChecked(True)
+        tb.addAction(act)
 
         # Herramienta por defecto
         self._tool_actions["select"].setChecked(True)
