@@ -68,7 +68,7 @@ class DiagramView(QGraphicsView):
             QRectF(-200, -200, diagram.width + 400, diagram.height + 400)
         )
         self.setScene(self.scene)
-        self.setBackgroundBrush(QColor("#dbe9fb"))
+        self.setBackgroundBrush(QColor("#ffffff"))
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
