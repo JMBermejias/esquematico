@@ -341,8 +341,7 @@ class MainWindow(QMainWindow):
             "(clic con el botón derecho cancela)")
 
     def toggle_grid(self) -> None:
-        self.view.scene.show_grid = self.act_grid.isChecked()
-        self.view.scene.update()
+        self.view.set_grid_visible(self.act_grid.isChecked())
 
     def toggle_pins(self) -> None:
         self.view.scene.show_pins = self.act_pins.isChecked()

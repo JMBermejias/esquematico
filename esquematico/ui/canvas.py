@@ -44,8 +44,6 @@ class DiagramScene(QGraphicsScene):
     def drawBackground(self, painter: QPainter, rect: QRectF) -> None:
         renderer = DiagramRenderer(painter, self.diagram, self.symbol_lookup)
         renderer.draw_background()
-        if self.show_grid:
-            renderer.draw_grid(True)
         renderer.draw_sheet()
         renderer.draw_title_block()
 
@@ -89,6 +87,7 @@ class DiagramView(QGraphicsView):
         # Caché de render (elementos gráficos propios de los símbolos)
         self._symbol_items: Dict[int, QGraphicsItem] = {}
         self._wire_items: Dict[int, QGraphicsLineItem] = {}
+        self._grid_dots: List[QGraphicsEllipseItem] = []
         self._pending_preview_item = None
         self._wire_preview_line: Optional[QGraphicsLineItem] = None
         self._wire_start_marker: Optional[QGraphicsEllipseItem] = None
@@ -104,6 +103,7 @@ class DiagramView(QGraphicsView):
         self.scene.clear()
         self._symbol_items.clear()
         self._wire_items.clear()
+        self._grid_dots.clear()
         self._pending_preview_item = None
         self._wire_preview_line = None
 
@@ -117,6 +117,45 @@ class DiagramView(QGraphicsView):
             item.setZValue(10)
             self.scene.addItem(item)
             self._symbol_items[id(inst)] = item
+
+        self._rebuild_grid_dots()
+
+    def _rebuild_grid_dots(self) -> None:
+        """Crea los puntos de la cuadrícula como elementos reales de la escena
+        (tamaño fijo en pantalla, visibles a cualquier zoom)."""
+        for d in self._grid_dots:
+            try:
+                self.scene.removeItem(d)
+            except RuntimeError:
+                pass
+        self._grid_dots.clear()
+        if not self.scene.show_grid:
+            return
+        g = self.diagram.grid_size
+        w, h = self.diagram.width, self.diagram.height
+        r = 3.0
+        x = 0.0
+        while x <= w:
+            y = 0.0
+            while y <= h:
+                dot = QGraphicsEllipseItem(QRectF(-r, -r, 2 * r, 2 * r))
+                dot.setPos(x, y)
+                dot.setBrush(QColor("#6d6d6d"))
+                dot.setPen(Qt.PenStyle.NoPen)
+                dot.setZValue(0)
+                dot.setFlag(
+                    QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations,
+                    True)
+                dot.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                self.scene.addItem(dot)
+                self._grid_dots.append(dot)
+                y += g
+            x += g
+
+    def set_grid_visible(self, visible: bool) -> None:
+        self.scene.show_grid = visible
+        self._rebuild_grid_dots()
+        self.scene.update()
 
     def _make_wire_item(self, w: Wire) -> QGraphicsLineItem:
         item = WireItem(w, self)
