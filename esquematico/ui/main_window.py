@@ -283,11 +283,7 @@ class MainWindow(QMainWindow):
         tb.addAction(self._action("+ zoom", lambda: self.zoom_view(1.2)))
         tb.addSeparator()
         # Puntos de referencia de la cuadrícula: mostrar/ocultar con un clic
-        act = self._action("Puntos de cuadrícula", self.toggle_grid,
-                           checkable=True)
-        act.setChecked(True)
-        self.act_grid.setChecked(True)
-        tb.addAction(act)
+        tb.addAction(self.act_grid)
 
         # Herramienta por defecto
         self._tool_actions["select"].setChecked(True)
