@@ -133,14 +133,14 @@ class DiagramView(QGraphicsView):
             return
         g = self.diagram.grid_size
         w, h = self.diagram.width, self.diagram.height
-        r = 3.0
+        r = 1.0
         x = 0.0
         while x <= w:
             y = 0.0
             while y <= h:
                 dot = QGraphicsEllipseItem(QRectF(-r, -r, 2 * r, 2 * r))
                 dot.setPos(x, y)
-                dot.setBrush(QColor("#6d6d6d"))
+                dot.setBrush(QColor("#9e9e9e"))
                 dot.setPen(Qt.PenStyle.NoPen)
                 dot.setZValue(0)
                 dot.setFlag(

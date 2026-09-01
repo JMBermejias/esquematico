@@ -55,7 +55,7 @@ class DiagramRenderer:
             return
         p = self.painter
         g = self.diagram.grid_size
-        r = 3.0
+        r = 1.5
         path = QPainterPath()
         y = 0.0
         while y <= self.diagram.height:
@@ -65,9 +65,9 @@ class DiagramRenderer:
                 x += g
             y += g
         p.save()
-        pen = QPen(QColor("#6d6d6d"), 1)
+        pen = QPen(QColor("#9e9e9e"), 1)
         p.setPen(pen)
-        p.setBrush(QColor("#6d6d6d"))
+        p.setBrush(QColor("#9e9e9e"))
         p.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         p.drawPath(path)
         p.restore()
