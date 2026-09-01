@@ -34,10 +34,13 @@ class PropertiesPanel(QWidget):
     """Muestra y edita las propiedades del símbolo seleccionado."""
 
     changed = Signal()
+    edit_started = Signal()
+    edit_finished = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._inst: Optional[SymbolInstance] = None
+        self._editing = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -56,7 +59,8 @@ class PropertiesPanel(QWidget):
 
         self.label_edit = QLineEdit()
         self.label_edit.setPlaceholderText("Etiqueta / referencia")
-        self.label_edit.editingFinished.connect(self._apply)
+        self.label_edit.textChanged.connect(self._apply)
+        self.label_edit.editingFinished.connect(self._finish_edit)
         form.addRow("Etiqueta:", self.label_edit)
 
         self.rotation = QDoubleSpinBox()
@@ -64,6 +68,7 @@ class PropertiesPanel(QWidget):
         self.rotation.setDecimals(0)
         self.rotation.setSuffix("°")
         self.rotation.valueChanged.connect(self._apply)
+        self.rotation.editingFinished.connect(self._finish_edit)
         form.addRow("Rotación:", self.rotation)
 
         self.scale = QDoubleSpinBox()
@@ -71,12 +76,13 @@ class PropertiesPanel(QWidget):
         self.scale.setDecimals(2)
         self.scale.setSingleStep(0.1)
         self.scale.valueChanged.connect(self._apply)
+        self.scale.editingFinished.connect(self._finish_edit)
         form.addRow("Escala:", self.scale)
 
         self.color_combo = QComboBox()
         for code, name in COLORS.items():
             self.color_combo.addItem(name, code)
-        self.color_combo.currentIndexChanged.connect(self._apply)
+        self.color_combo.currentIndexChanged.connect(self._apply_color)
         form.addRow("Color:", self.color_combo)
 
         self.color_btn = QPushButton("Personalizar color...")
@@ -117,14 +123,29 @@ class PropertiesPanel(QWidget):
         finally:
             self._loading = False
 
+    def _begin_edit(self) -> None:
+        if not self._editing:
+            self._editing = True
+            self.edit_started.emit()
+
+    def _finish_edit(self) -> None:
+        if self._editing:
+            self._editing = False
+            self.edit_finished.emit()
+
     def _apply(self) -> None:
         if self._loading or self._inst is None:
             return
+        self._begin_edit()
         self._inst.label = self.label_edit.text()
         self._inst.rotation = self.rotation.value()
         self._inst.scale = self.scale.value()
         self._inst.color = self.color_combo.currentData() or self._inst.color
         self.changed.emit()
+
+    def _apply_color(self) -> None:
+        self._apply()
+        self._finish_edit()
 
     def _pick_color(self) -> None:
         if self._inst is None:
@@ -133,6 +154,7 @@ class PropertiesPanel(QWidget):
         color = QColorDialog.getColor(QColor(self._inst.color), self,
                                       "Elegir color")
         if color.isValid():
+            self._begin_edit()
             hexcode = color.name()
             self._inst.color = hexcode
             idx = self.color_combo.findData(hexcode)
@@ -142,3 +164,4 @@ class PropertiesPanel(QWidget):
             else:
                 self.color_combo.setCurrentIndex(idx)
             self.changed.emit()
+            self._finish_edit()

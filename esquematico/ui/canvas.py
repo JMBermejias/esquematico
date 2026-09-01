@@ -74,6 +74,7 @@ class DiagramView(QGraphicsView):
 
         # Estado de la herramienta
         self.tool = "select"          # select | symbol | wire | pan
+        self.history = None           # core.history.History (opcional)
         self.pending_symbol: Optional[SymbolInstance] = None
         self.wire_start: Optional[QPointF] = None
         self.wire_start_pos: Optional[QPointF] = None
@@ -191,6 +192,17 @@ class DiagramView(QGraphicsView):
         return best
 
     # ------------------------------------------------------------------
+    # Historial (deshacer/rehacer)
+    # ------------------------------------------------------------------
+    def checkpoint(self) -> None:
+        if self.history is not None:
+            self.history.checkpoint()
+
+    def commit(self) -> None:
+        if self.history is not None:
+            self.history.commit()
+
+    # ------------------------------------------------------------------
     # Herramientas
     # ------------------------------------------------------------------
     def set_tool(self, tool: str) -> None:
@@ -223,6 +235,7 @@ class DiagramView(QGraphicsView):
         return QPointF(round(p.x() / g) * g, round(p.y() / g) * g)
 
     def add_symbol_at(self, pos: QPointF, symbol: Symbol) -> SymbolInstance:
+        self.checkpoint()
         p = self.snap(pos)
         inst = SymbolInstance(symbol.id, p.x(), p.y())
         self.diagram.add_symbol(inst)
@@ -231,9 +244,11 @@ class DiagramView(QGraphicsView):
         self.scene.addItem(item)
         self._symbol_items[id(inst)] = item
         self._update_pin_cache()
+        self.commit()
         return inst
 
     def start_wire(self, pos: QPointF) -> None:
+        self.checkpoint()
         self.wire_start = self.snap(pos)
         self.wire_start_pos = self.wire_start
         self.wire_preview_start = self.wire_start
@@ -273,6 +288,7 @@ class DiagramView(QGraphicsView):
                 self._make_wire_item(w)
                 self.status_message.emit("Cable creado")
         self._clear_wire_state()
+        self.commit()
 
     def _clear_wire_state(self) -> None:
         if self._wire_preview_line is not None:
@@ -287,6 +303,7 @@ class DiagramView(QGraphicsView):
 
     def cancel_wire(self) -> None:
         self._clear_wire_state()
+        self.commit()
         self.status_message.emit("Cable cancelado")
 
     def set_pending_preview(self, pos: QPointF, symbol: Symbol) -> None:
@@ -412,6 +429,7 @@ class DiagramView(QGraphicsView):
         return None
 
     def delete_selected(self) -> None:
+        self.checkpoint()
         removed_any = False
         for it in list(self.scene.selectedItems()):
             if isinstance(it, SymbolItem):
@@ -432,6 +450,7 @@ class DiagramView(QGraphicsView):
             self._update_pin_cache()
             self.symbol_selected.emit(None)
             self.status_message.emit("Elemento(s) eliminados")
+            self.commit()
 
     def select_symbol(self, inst: Optional[SymbolInstance]) -> None:
         for it in self.scene.items():
@@ -446,6 +465,7 @@ class DiagramView(QGraphicsView):
         self.symbol_selected.emit(None)
 
     def remove_symbol(self, inst: SymbolInstance) -> None:
+        self.checkpoint()
         if inst in self.diagram.symbols:
             self.diagram.symbols.remove(inst)
         it = self._symbol_items.pop(id(inst), None)
@@ -453,6 +473,7 @@ class DiagramView(QGraphicsView):
             self.scene.removeItem(it)
         self._update_pin_cache()
         self.symbol_selected.emit(None)
+        self.commit()
 
     def refresh(self) -> None:
         self._rebuild_static()
@@ -626,13 +647,25 @@ class SymbolItem(QGraphicsItem):
             return p
         return super().itemChange(change, value)
 
+    def mousePressEvent(self, event) -> None:
+        if not self.transient:
+            self.view.checkpoint()
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        super().mouseReleaseEvent(event)
+        if not self.transient:
+            self.view.commit()
+
     def mouseDoubleClickEvent(self, event) -> None:
         if self.view.tool == "select":
             # Rotar 90 grados al hacer doble clic
+            self.view.checkpoint()
             self.inst.rotation = (self.inst.rotation + 90) % 360
             self.update_shape()
             self.view._update_pin_cache()
             self.update()
+            self.view.commit()
         super().mouseDoubleClickEvent(event)
 
     def update_shape(self) -> None:
@@ -657,12 +690,15 @@ class SymbolItem(QGraphicsItem):
         if chosen == act_del:
             self.view.remove_symbol(self.inst)
         elif chosen == act_rot90:
+            self.view.checkpoint()
             self.inst.rotation = (self.inst.rotation + 90) % 360
             self.update_shape()
             self.view._update_pin_cache()
             self.update()
+            self.view.commit()
         elif chosen == act_dup:
             import copy
+            self.view.checkpoint()
             new_inst = copy.deepcopy(self.inst)
             new_inst.x += 40
             new_inst.y += 40
@@ -672,3 +708,4 @@ class SymbolItem(QGraphicsItem):
             self.view.scene.addItem(item)
             self.view._symbol_items[id(new_inst)] = item
             self.view._update_pin_cache()
+            self.view.commit()

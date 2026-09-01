@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import __appname__, __version__
+from ..core.history import History
 from ..core.model import Diagram, SymbolInstance
 from ..symbols.library import Symbol, build_library, symbol_by_id
 from .canvas import DiagramView
@@ -157,6 +158,8 @@ class MainWindow(QMainWindow):
         self.diagram = Diagram()
         self.current_path: Optional[str] = None
 
+        self.history = History(self.diagram)
+
         self.setWindowTitle(f"{__appname__} - {self.diagram.name}")
         self.resize(1280, 800)
         self.setStyleSheet(STYLE)
@@ -193,6 +196,19 @@ class MainWindow(QMainWindow):
         m_archivo.addAction(self._action("Salir", self.close, "Alt+F4"))
 
         m_editar = mbar.addMenu("&Editar")
+        self.act_undo = self._action("Deshacer", self.undo, "Ctrl+Z")
+        self.act_redo = self._action("Rehacer", self.redo,
+                                     "Ctrl+Y", )
+        self.act_redo.setShortcuts([QKeySequence("Ctrl+Y"),
+                                    QKeySequence("Ctrl+Shift+Z")])
+        self.act_undo.setEnabled(False)
+        self.act_redo.setEnabled(False)
+        self.history.changed.connect(self._update_history_actions)
+        m_editar.addAction(self.act_undo)
+        m_editar.addAction(self.act_redo)
+        m_editar.addSeparator()
+        m_editar.addAction(self._action("Limpiar todo", self.clear_all))
+        m_editar.addSeparator()
         m_editar.addAction(self._action("Eliminar selección",
                                         self.view.delete_selected, "Supr"))
         m_editar.addAction(self._action("Rotar 90° selección",
@@ -258,6 +274,11 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
         _tool_action("Mano", "pan", "H")
         tb.addSeparator()
+        tb.addAction(self.act_undo)
+        tb.addAction(self.act_redo)
+        tb.addSeparator()
+        tb.addAction(self._action("Limpiar", self.clear_all))
+        tb.addSeparator()
         tb.addAction(self._action("- zoom", lambda: self.zoom_view(1 / 1.2)))
         tb.addAction(self._action("+ zoom", lambda: self.zoom_view(1.2)))
         tb.addSeparator()
@@ -273,6 +294,7 @@ class MainWindow(QMainWindow):
 
     def _build_central(self) -> None:
         self.view = DiagramView(self.diagram, self.library)
+        self.view.history = self.history
         self.view.symbol_selected.connect(self._on_symbol_selected)
         self.view.status_message.connect(self.statusBar().showMessage)
 
@@ -300,6 +322,8 @@ class MainWindow(QMainWindow):
 
         self.props = PropertiesPanel()
         self.props.changed.connect(self._on_props_changed)
+        self.props.edit_started.connect(self.history.checkpoint)
+        self.props.edit_finished.connect(self._on_props_edit_finished)
         dock_props = QDockWidget("Propiedades", self)
         dock_props.setWidget(self.props)
         dock_props.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable
@@ -360,11 +384,14 @@ class MainWindow(QMainWindow):
                             Qt.AspectRatioMode.KeepAspectRatio)
 
     def rotate_selected(self) -> None:
+        self.history.checkpoint()
         for it in self.view.scene.selectedItems():
             from .canvas import SymbolItem
             if isinstance(it, SymbolItem):
                 it.inst.rotation = (it.inst.rotation + 90) % 360
                 it.update_shape()
+        if self.view.scene.selectedItems():
+            self.history.commit()
         self.view._update_pin_cache()
         self.props.set_symbol(self._current_selected())
 
@@ -395,6 +422,48 @@ class MainWindow(QMainWindow):
                 it.update()
                 it.update_shape()
 
+    def _on_props_edit_finished(self) -> None:
+        self.history.commit()
+        self.view._update_pin_cache()
+
+    # ------------------------------------------------------------------
+    # Deshacer / rehacer / limpiar
+    # ------------------------------------------------------------------
+    def _update_history_actions(self) -> None:
+        self.act_undo.setEnabled(self.history.can_undo())
+        self.act_redo.setEnabled(self.history.can_redo())
+
+    def _refresh_after_history(self) -> None:
+        self.view.scene.clearSelection()
+        self.view.refresh()
+        self.props.set_symbol(None)
+        self.statusBar().showMessage("Lienzo actualizado")
+
+    def undo(self) -> None:
+        if self.history.undo():
+            self._refresh_after_history()
+
+    def redo(self) -> None:
+        if self.history.redo():
+            self._refresh_after_history()
+
+    def clear_all(self) -> None:
+        if not self.diagram.symbols and not self.diagram.wires:
+            return
+        ret = QMessageBox.question(
+            self, "Limpiar todo",
+            "¿Eliminar todos los símbolos y cables del esquema?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        if ret != QMessageBox.StandardButton.Yes:
+            return
+        self.history.checkpoint()
+        self.diagram.symbols.clear()
+        self.diagram.wires.clear()
+        self.history.commit()
+        self._refresh_after_history()
+        self.statusBar().showMessage("Esquema limpiado")
+
     # ------------------------------------------------------------------
     # Archivo
     # ------------------------------------------------------------------
@@ -406,6 +475,7 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard():
             return
         self.diagram = Diagram()
+        self.history.attach(self.diagram)
         self.view.diagram = self.diagram
         self.view.scene.diagram = self.diagram
         self.view.refresh()
@@ -424,6 +494,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"No se pudo abrir el archivo:\n{e}")
             return
         self.current_path = path
+        self.history.attach(self.diagram)
         self.view.diagram = self.diagram
         self.view.scene.diagram = self.diagram
         self.view.refresh()

@@ -123,15 +123,20 @@ class Diagram:
             data = json.load(f)
         diag_data = data.get("diagram", data)
         diagram = cls()
-        diagram.name = diag_data.get("name", "Esquema sin título")
-        diagram.width = diag_data.get("width", 1600.0)
-        diagram.height = diag_data.get("height", 1000.0)
-        diagram.grid_size = diag_data.get("grid_size", 10.0)
-        diagram.background = diag_data.get("background", "#ffffff")
-        meta = diag_data.get("metadata")
-        diagram.metadata = {**DEFAULT_METADATA, **(meta or {})}
-        diagram.symbols = [
-            SymbolInstance.from_dict(s) for s in diag_data.get("symbols", [])
-        ]
-        diagram.wires = [Wire.from_dict(w) for w in diag_data.get("wires", [])]
+        diagram.load_dict(diag_data)
         return diagram
+
+    def load_dict(self, data: Dict[str, Any]) -> None:
+        """Restaura el estado del diagrama desde un dict (de to_dict)."""
+        self.name = data.get("name", "Esquema sin título")
+        self.width = data.get("width", 1600.0)
+        self.height = data.get("height", 1000.0)
+        self.grid_size = data.get("grid_size", 10.0)
+        self.background = data.get("background", "#ffffff")
+        self.metadata = {
+            **DEFAULT_METADATA, **(data.get("metadata") or {})
+        }
+        self.symbols = [
+            SymbolInstance.from_dict(s) for s in data.get("symbols", [])
+        ]
+        self.wires = [Wire.from_dict(w) for w in data.get("wires", [])]
