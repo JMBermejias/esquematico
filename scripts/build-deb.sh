@@ -84,7 +84,7 @@ Version: ${VERSION}
 Section: education
 Priority: optional
 Architecture: ${ARCH}
-Depends: libgl1-mesa-glx | libgl1, libegl1, libfontconfig1, libdbus-1-3, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libxkbcommon0
+Depends: libgl1, libegl1, libfontconfig1, libdbus-1-3, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libxkbcommon0
 Installed-Size: ${INSTALLED_SIZE}
 Maintainer: Jose Manuel Bernabeu Mejias <jmbernabeu@gmail.com>
 Homepage: https://github.com/JMBermejias/esquematico
